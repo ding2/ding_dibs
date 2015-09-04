@@ -6,7 +6,7 @@ function ding_dibs_setting_emails($form, &$form_state) {
   $form = array();
   $form['ding_dibs_emails']=array(
     '#type' => 'textarea',
-    '#title' => t('Emails list'),
+    '#title' => t('Input emails that should be notified if something unusual happens with a payment.'),
     '#description' => t('Enter up to ten email addresses Enter through the separator or comma, without blank lines.'),
     '#default_value' => variable_get('ding_dibs_emails', ''),
     '#required' => TRUE,
@@ -47,6 +47,8 @@ function ding_dibs_emails_validate($element, &$form_state, $form) {
 }
 
 function ding_dibs_email_reports() {
+  $cron_last = variable_get('cron_last');
+
   $report = db_select('dibs_transactions', 'd')
     ->fields('d', array('payment_order_id',
       'payment_transaction_id',
@@ -58,12 +60,19 @@ function ding_dibs_email_reports() {
       'payment_status',
       'provider_payment_status',
       'dibs_capture_status'))
+    ->condition('payment_time', date('Y-m-d H:i:s', $cron_last), '>')
     ->condition('d.api_module', 'ding_dibs')
     ->condition('d.api_delta', 1)
     ->orderBy('payment_order_id', 'DESC')
     ->execute()
     ->fetchAll();
   $max_count = count($report);
+  $no_transactions_msg =  '<p>' . t('No transactions found.') . '</p>';
+
+  if (!$max_count) {
+    return $no_transactions_msg;
+  }
+
   for($count = 0; $count < $max_count; $count++) {
     if(!($report[$count]->payment_status === $report[$count]->provider_payment_status
       && $report[$count]->payment_status === $report[$count]->dibs_capture_status
@@ -73,12 +82,6 @@ function ding_dibs_email_reports() {
   }
   $rows = array();
   drupal_add_css(drupal_get_path('module', 'ding_dibs') . '/css/ding_dibs.css');
-  $no_transactions_msg =  array(
-    'no_transactions_msg' => array(
-      '#type' => 'markup',
-      '#markup' => '<p>' . t('No transactions found.') . '</p>',
-    ),
-  );
   $header = array(
     array('data' => t('Order ID'), 'class' => 'payment'),
     array('data' => t('Transaction ID'), 'class' => 'payment'),
@@ -135,7 +138,7 @@ function ding_dibs_email_reports() {
     'rows' => $rows,
   ));
   if ( $no_transactions_msg ) {
-    $output .= drupal_render($no_transactions_msg);
+    $output .= $no_transactions_msg;
   }
   $output .= theme('item_list', array('items' => $items));
   return render($output);
