@@ -448,7 +448,7 @@ function ding_dibs_cron() {
         if (!empty($email)) {
           drupal_mail('system', 'mail', $email, language_default(), array(
             'context' => array(
-              'subject' => t('Ding dibs reports'),
+              'subject' => t('Recent unusual DIBS reports'),
               'message' => $text_message,
             )
           ));
