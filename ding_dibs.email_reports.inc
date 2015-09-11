@@ -47,7 +47,7 @@ function ding_dibs_emails_validate($element, &$form_state, $form) {
 }
 
 function ding_dibs_email_reports() {
-  $cron_last = variable_get('cron_last');
+  $time = REQUEST_TIME - 10800;
 
   $report = db_select('dibs_transactions', 'd')
     ->fields('d', array('payment_order_id',
@@ -60,7 +60,7 @@ function ding_dibs_email_reports() {
       'payment_status',
       'provider_payment_status',
       'dibs_capture_status'))
-    ->condition('payment_time', date('Y-m-d H:i:s', $cron_last), '>')
+    ->condition('payment_time', date('Y-m-d H:i:s', $time), '>')
     ->condition('d.api_module', 'ding_dibs')
     ->condition('d.api_delta', 1)
     ->orderBy('payment_order_id', 'DESC')
