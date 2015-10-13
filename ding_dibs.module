@@ -506,7 +506,10 @@ function _ding_dibs_insert_table($start) {
  * Insert table ding_dibs_report_cron().
  */
 function _ding_dibs_ubdate_table($id, $start) {
-  $last = _ding_dibs_select_info($id, 1);
+  $previous = _ding_dibs_select_info($id, 1, TRUE);
+  if (empty($previous)) {
+    $last = _ding_dibs_select_info($id, 1);
+  }
   $day = format_date(REQUEST_TIME, 'custom', 'd');
   $hour = format_date(variable_get('ding_dibs_start_operation_cron', REQUEST_TIME), 'custom', 'H:i');
   if ($last) {
@@ -516,7 +519,7 @@ function _ding_dibs_ubdate_table($id, $start) {
     }
   }
   else {
-    $last_day = --$day;
+    $last_day = $day - 1;
   }
   $message = $day . 'th september ' . $hour . ': Job delivered report for '
     . $last_day . 'th sep ' . $start . ':00 - ' . $day . 'th september '
@@ -536,11 +539,14 @@ function _ding_dibs_ubdate_table($id, $start) {
 /**
  * Select info from the table ding_dibs_report_cron().
  */
-function _ding_dibs_select_info($id = FALSE, $status = FALSE) {
+function _ding_dibs_select_info($id = FALSE, $status = FALSE, $operator = FALSE) {
   $query = db_select('ding_dibs_report_cron', 'r');
   $query->fields('r', array('status', 'time_start'));
-  if ($id) {
+  if ($id && empty($operator)) {
     $query->condition('r.id', $id, '<');
+  }
+  elseif ($id && !empty($operator)) {
+    $query->condition('r.id', --$id, '=');
   }
   if ($status) {
     $query->condition('r.status', $status);

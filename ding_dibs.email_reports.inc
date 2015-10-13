@@ -13,8 +13,8 @@ function ding_dibs_setting_emails($form, &$form_state) {
   $form = array();
   $form['ding_dibs_start_cron'] = array(
     '#type' => 'select',
-    '#title' => t('The start time cron.'),
-    '#description' => t('The start time cron.'),
+    '#title' => t('Hour run cron'),
+    '#description' => t('Hour run cron.'),
     '#options' => $options,
     '#default_value' => variable_get('ding_dibs_start_cron', ''),
     '#required' => TRUE,
