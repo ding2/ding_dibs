@@ -9,7 +9,16 @@
  */
 function ding_dibs_setting_emails($form, &$form_state) {
   drupal_add_css(drupal_get_path('module', 'ding_dibs') . '/css/ding_dibs.css');
+  $options = drupal_map_assoc(range(0, 23));
   $form = array();
+  $form['ding_dibs_start_cron'] = array(
+    '#type' => 'select',
+    '#title' => t('The start time cron.'),
+    '#description' => t('The start time cron.'),
+    '#options' => $options,
+    '#default_value' => variable_get('ding_dibs_start_cron', ''),
+    '#required' => TRUE,
+  );
   $form['ding_dibs_emails'] = array(
     '#type' => 'textarea',
     '#title' => t('Input emails that should be notified if something unusual happens with a payment.'),
@@ -32,7 +41,7 @@ function ding_dibs_emails_validate($element, &$form_state, $form) {
       if (!empty($email) && !valid_email_address($email)) {
         form_error($element, t('Please enter a valid email address.'));
       }
-      else {
+      elseif (empty($email)) {
         form_error($element, t('Remove the empty string.'));
       }
     }
@@ -47,7 +56,6 @@ function ding_dibs_emails_validate($element, &$form_state, $form) {
  */
 function ding_dibs_email_reports() {
   $time = REQUEST_TIME - 10800;
-
   $report = db_select('dibs_transactions', 'd')
     ->fields('d', array(
       'payment_order_id',
@@ -68,12 +76,10 @@ function ding_dibs_email_reports() {
     ->execute()
     ->fetchAll();
   $max_count = count($report);
-  $no_transactions_msg =  '<p>' . t('No transactions found.') . '</p>';
-
+  $no_transactions_msg = '<p>' . t('No transactions found.') . '</p>';
   if (!$max_count) {
     return $no_transactions_msg;
   }
-
   for ($count = 0; $count < $max_count; $count++) {
     if (!($report[$count]->payment_status == $report[$count]->provider_payment_status && $report[$count]->payment_status == $report[$count]->dibs_capture_status && $report[$count]->provider_payment_status == $report[$count]->dibs_capture_status)) {
       $report_valid[] = $report[$count];
@@ -146,7 +152,7 @@ function ding_dibs_email_reports() {
     elseif (is_string($order_info_long)) {
       $text = $order_info_long;
     }
-    else { // No info_long
+    else {
       $text = $record->order_info_short;
     }
     $row = array(
@@ -202,6 +208,47 @@ function ding_dibs_email_reports() {
   if ($no_transactions_msg) {
     $output .= $no_transactions_msg;
   }
-  $output .= theme('item_list', array('items' => $items));
+  return render($output);
+}
+
+/**
+ * Output report cron status.
+ */
+function ding_dibs_cron_report() {
+  $report = db_select('ding_dibs_report_cron', 'd')
+    ->fields('d', array('id', 'time_start', 'status', 'text'))
+    ->orderBy('id', 'DESC')
+    ->execute()
+    ->fetchAll();
+  $max_count = count($report);
+  $no_transactions_msg = '<p>' . t('No cron report.') . '</p>';
+  if (!$max_count) {
+    return $no_transactions_msg;
+  }
+  $rows = array();
+  drupal_add_css(drupal_get_path('module', 'ding_dibs') . '/css/ding_dibs.css');
+  $header = array(array('data' => t('Message'), 'class' => 'payment'));
+  foreach ($report as $record) {
+    if (empty($record->text)) {
+      $day = format_date($record->time_start, 'custom', 'd');
+      $hour = format_date($record->time_start, 'custom', 'H:i');
+      $record->text = $day . 'th september ' . $hour . ': Job failed.';
+    }
+    $row = array(
+      array(
+        'data' => t($record->text),
+        'class' => 'payment',
+      ),
+    );
+    $rows[] = $row;
+    $no_transactions_msg = NULL;
+  }
+  $output = theme('table', array(
+    'header' => $header,
+    'rows' => $rows,
+  ));
+  if ($no_transactions_msg) {
+    $output .= $no_transactions_msg;
+  }
   return render($output);
 }
