@@ -78,6 +78,7 @@ function ding_dibs_uninstall() {
   $variables = array(
     'ding_dibs_start_cron',
     'ding_dibs_start_operation_cron',
+    'ding_dibs_start_cron_minute',
     'ding_dibs_emails_validate',
   );
   for ($start = 0; $start < count($variables); $start++) {
