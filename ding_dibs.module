@@ -386,6 +386,17 @@ function ding_dibs_menu() {
     'file' => 'ding_dibs.reports.inc',
   );
 
+  $items['admin/config/payment/ding_dibs/emails'] = array(
+    'title' => 'Ding DIBS setting emails',
+    'description' => 'Ding DIBS setting emails.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ding_dibs_setting_emails'),
+    'access arguments' => array('administer dibs settings'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 5,
+    'file' => 'ding_dibs.email_reports.inc',
+  );
+
   return $items;
 }
 
@@ -419,4 +430,30 @@ function ding_dibs_cards() {
   $cards['Getitcard'] = 'getitcard2_53x33.gif';
 
   return $cards;
+}
+
+/**
+ * Implements hook_cron().
+ */
+function ding_dibs_cron() {
+  $emails_list = variable_get('ding_dibs_emails', '');
+  if (!empty($emails_list)) {
+    $emails_array = preg_split("/\,|\r\n|\n/", $emails_list);
+    $emails_count = count($emails_array);
+    if ($emails_count >= 1) {
+      module_load_include('inc', 'ding_dibs', 'ding_dibs.email_reports');
+      $text_message = ding_dibs_email_reports();
+      for ($count = 0; $count < $emails_count; $count++) {
+        $email = $emails_array[$count];
+        if (!empty($email)) {
+          drupal_mail('system', 'mail', $email, language_default(), array(
+            'context' => array(
+              'subject' => t('Ding dibs reports'),
+              'message' => $text_message,
+            )
+          ));
+        }
+      }
+  }
+}
 }
