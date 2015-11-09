@@ -397,6 +397,17 @@ function ding_dibs_menu() {
     'file' => 'ding_dibs.email_reports.inc',
   );
 
+  $items['admin/config/payment/ding_dibs/cron_report'] = array(
+    'title' => 'Ding DIBS cron report',
+    'description' => 'Ding DIBS cron report.',
+    'page callback' => 'ding_dibs_cron_report',
+    'access arguments' => array('administer dibs settings'),
+    'weight' => 6,
+    'tab_parent' => 'admin/config/payment/ding_dibs',
+    'type' => MENU_LOCAL_TASK,
+    'file' => 'ding_dibs.email_reports.inc',
+  );
+
   return $items;
 }
 
@@ -436,24 +447,104 @@ function ding_dibs_cards() {
  * Implements hook_cron().
  */
 function ding_dibs_cron() {
+  $start_cron = FALSE;
+  $start = variable_get('ding_dibs_start_cron', '');
+  $start_operation = variable_get('ding_dibs_start_operation_cron', '');
   $emails_list = variable_get('ding_dibs_emails', '');
-  if (!empty($emails_list)) {
-    $emails_array = preg_split("/\,|\r\n|\n/", $emails_list);
-    $emails_count = count($emails_array);
-    if ($emails_count >= 1) {
-      module_load_include('inc', 'ding_dibs', 'ding_dibs.email_reports');
-      $text_message = ding_dibs_email_reports();
-      for ($count = 0; $count < $emails_count; $count++) {
-        $email = $emails_array[$count];
-        if (!empty($email)) {
-          drupal_mail('system', 'mail', $email, language_default(), array(
-            'context' => array(
-              'subject' => t('Recent unusual DIBS reports'),
-              'message' => $text_message,
-            )
-          ));
+  if (!empty($start)) {
+    $start_val = mktime($start, 0, 0, format_date(REQUEST_TIME, 'custom', 'm'), format_date(REQUEST_TIME, 'custom', 'd'), format_date(REQUEST_TIME, 'custom', 'Y'));
+    $today_date = format_date(REQUEST_TIME, 'custom', 'H/d/m/Y');
+    $start_date = format_date($start_val, 'custom', 'H/d/m/Y');
+    if (!empty($start_operation)) {
+      $start_operation_date = format_date($start_operation, 'custom', 'd/m/Y');
+    }
+    if ($today_date == $start_date || $today_date >= $start_date) {
+      if (empty($start_operation_date) || $start_operation_date < format_date(REQUEST_TIME, 'custom', 'd/m/Y')) {
+        $start_cron = TRUE;
+      }
+    }
+  }
+  if ($start_cron) {
+    if (!empty($emails_list)) {
+      $emails_array = preg_split("/\,|\r\n|\n/", $emails_list);
+      $emails_count = count($emails_array);
+      if ($emails_count >= 1) {
+        module_load_include('inc', 'ding_dibs', 'ding_dibs.email_reports');
+        $text_message = ding_dibs_email_reports();
+        variable_set('ding_dibs_start_operation_cron', REQUEST_TIME);
+        $id = _ding_dibs_insert_table(variable_get('ding_dibs_start_operation_cron', REQUEST_TIME));
+        for ($count = 0; $count < $emails_count; $count++) {
+          $email = $emails_array[$count];
+          if (!empty($email)) {
+            drupal_mail('system', 'mail', $email, language_default(), array(
+              'context' => array(
+                'subject' => t('Recent unusual DIBS reports'),
+                'message' => $text_message,
+              ),
+            ));
+          }
+        }
+        if (!empty($id)) {
+          _ding_dibs_ubdate_table($id, $start);
         }
       }
+    }
   }
 }
+
+/**
+ * Update table ding_dibs_report_cron().
+ */
+function _ding_dibs_insert_table($start) {
+  $query = db_insert('ding_dibs_report_cron');
+  $query->fields(array('time_start' => $start));
+  $id = $query->execute();
+  return $id;
+}
+
+/**
+ * Insert table ding_dibs_report_cron().
+ */
+function _ding_dibs_ubdate_table($id, $start) {
+  $last = _ding_dibs_select_info($id, 1);
+  $day = format_date(REQUEST_TIME, 'custom', 'd');
+  $hour = format_date(variable_get('ding_dibs_start_operation_cron', REQUEST_TIME), 'custom', 'H:i');
+  if ($last) {
+    $count = count($last) - 1;
+    if (!empty($last[$count]->time_start)) {
+      $last_day = format_date($last[$count]->time_start, 'custom', 'd');
+    }
+  }
+  else {
+    $last_day = --$day;
+  }
+  $message = $day . 'th september ' . $hour . ': Job delivered report for '
+    . $last_day . 'th sep ' . $start . ':00 - ' . $day . 'th september '
+    . $start . ':00.';
+  $query = db_update('ding_dibs_report_cron');
+  $query->fields(
+    array(
+      'time_end' => REQUEST_TIME,
+      'status' => 1,
+      'text' => $message,
+    )
+  );
+  $query->condition('id', $id);
+  $query->execute();
+}
+
+/**
+ * Select info from the table ding_dibs_report_cron().
+ */
+function _ding_dibs_select_info($id = FALSE, $status = FALSE) {
+  $query = db_select('ding_dibs_report_cron', 'r');
+  $query->fields('r', array('status', 'time_start'));
+  if ($id) {
+    $query->condition('r.id', $id, '<');
+  }
+  if ($status) {
+    $query->condition('r.status', $status);
+  }
+  $result = $query->execute()->fetchAll();
+  return $result;
 }
