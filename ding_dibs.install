@@ -67,6 +67,7 @@ function ding_dibs_install() {
     'default' => 0,
     'description' => '0 = capture failed, 1 = capture succeeded',
   ));
+  variable_set('ding_dibs_start_cron', 2);
   drupal_install_schema('ding_dibs');
 }
 

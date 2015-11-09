@@ -8,15 +8,16 @@
  * Settings form.
  */
 function ding_dibs_setting_emails($form, &$form_state) {
+  drupal_set_title(t('Ding DIBS setting emails'));
   drupal_add_css(drupal_get_path('module', 'ding_dibs') . '/css/ding_dibs.css');
   $options = drupal_map_assoc(range(0, 23));
   $form = array();
   $form['ding_dibs_start_cron'] = array(
     '#type' => 'select',
-    '#title' => t('Hour run cron'),
-    '#description' => t('Hour run cron.'),
+    '#title' => t('Set the daily hour to run this cron'),
+    '#description' => t('Set the daily hour to run this cron.'),
     '#options' => $options,
-    '#default_value' => variable_get('ding_dibs_start_cron', ''),
+    '#default_value' => variable_get('ding_dibs_start_cron', 2),
     '#required' => TRUE,
   );
   $form['ding_dibs_emails'] = array(
@@ -215,6 +216,7 @@ function ding_dibs_email_reports() {
  * Output report cron status.
  */
 function ding_dibs_cron_report() {
+  drupal_set_title(t('Ding DIBS cron report'));
   $report = db_select('ding_dibs_report_cron', 'd')
     ->fields('d', array('id', 'time_start', 'status', 'text'))
     ->orderBy('id', 'DESC')
