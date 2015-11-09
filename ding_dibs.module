@@ -449,12 +449,13 @@ function ding_dibs_cards() {
 function ding_dibs_cron() {
   $start_cron = FALSE;
   $start = variable_get('ding_dibs_start_cron', '');
+  $start_minute = variable_get('ding_dibs_start_cron_minute', 0);
   $start_operation = variable_get('ding_dibs_start_operation_cron', '');
   $emails_list = variable_get('ding_dibs_emails', '');
   if (!empty($start)) {
-    $start_val = mktime($start, 0, 0, format_date(REQUEST_TIME, 'custom', 'm'), format_date(REQUEST_TIME, 'custom', 'd'), format_date(REQUEST_TIME, 'custom', 'Y'));
-    $today_date = format_date(REQUEST_TIME, 'custom', 'H/d/m/Y');
-    $start_date = format_date($start_val, 'custom', 'H/d/m/Y');
+    $start_val = mktime($start, $start_minute, 0, format_date(REQUEST_TIME, 'custom', 'm'), format_date(REQUEST_TIME, 'custom', 'd'), format_date(REQUEST_TIME, 'custom', 'Y'));
+    $today_date = format_date(REQUEST_TIME, 'custom', 'd/m/Y/H:i');
+    $start_date = format_date($start_val, 'custom', 'd/m/Y/H:i');
     if (!empty($start_operation)) {
       $start_operation_date = format_date($start_operation, 'custom', 'd/m/Y');
     }
@@ -485,7 +486,7 @@ function ding_dibs_cron() {
           }
         }
         if (!empty($id)) {
-          _ding_dibs_ubdate_table($id, $start);
+          _ding_dibs_ubdate_table($id, $start, $start_minute);
         }
       }
     }
@@ -505,11 +506,12 @@ function _ding_dibs_insert_table($start) {
 /**
  * Insert table ding_dibs_report_cron().
  */
-function _ding_dibs_ubdate_table($id, $start) {
+function _ding_dibs_ubdate_table($id, $start, $start_minute) {
   $previous = _ding_dibs_select_info($id, 1, TRUE);
   if (empty($previous)) {
     $last = _ding_dibs_select_info($id, 1);
   }
+  $start_minute = str_pad($start_minute, 2, "0", STR_PAD_LEFT);
   $day = format_date(REQUEST_TIME, 'custom', 'd');
   $hour = format_date(variable_get('ding_dibs_start_operation_cron', REQUEST_TIME), 'custom', 'H:i');
   if ($last) {
@@ -522,8 +524,8 @@ function _ding_dibs_ubdate_table($id, $start) {
     $last_day = $day - 1;
   }
   $message = $day . 'th september ' . $hour . ': Job delivered report for '
-    . $last_day . 'th sep ' . $start . ':00 - ' . $day . 'th september '
-    . $start . ':00.';
+    . $last_day . 'th sep ' . $start . ':' . $start_minute . ' - ' . $day . 'th september '
+    . $start . ':' . $start_minute . '.';
   $query = db_update('ding_dibs_report_cron');
   $query->fields(
     array(

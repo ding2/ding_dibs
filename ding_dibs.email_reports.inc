@@ -10,15 +10,28 @@
 function ding_dibs_setting_emails($form, &$form_state) {
   drupal_set_title(t('Ding DIBS setting emails'));
   drupal_add_css(drupal_get_path('module', 'ding_dibs') . '/css/ding_dibs.css');
-  $options = drupal_map_assoc(range(0, 23));
+  $hour = range(0, 23);
+  $options_hour = array_map(generate_zerro, $hour);
+  $minute = range(0, 59);
+  $options_minute = array_map(generate_zerro, $minute);
+  $text = '<label for="edit-ding-dibs-start-cron">';
+  $text .= t('Set the daily hour to run this cron');
+  $text .= '<span title="' . t('This field is required.');
+  $text .= '" class="form-required">*</span></label>';
   $form = array();
   $form['ding_dibs_start_cron'] = array(
     '#type' => 'select',
-    '#title' => t('Set the daily hour to run this cron'),
-    '#description' => t('Set the daily hour to run this cron.'),
-    '#options' => $options,
+    '#options' => $options_hour,
     '#default_value' => variable_get('ding_dibs_start_cron', 2),
     '#required' => TRUE,
+    '#prefix' => $text . '<div class="container-inline">',
+  );
+  $form['ding_dibs_start_cron_minute'] = array(
+    '#type' => 'select',
+    '#options' => $options_minute,
+    '#default_value' => variable_get('ding_dibs_start_cron_minute', 0),
+    '#required' => TRUE,
+    '#suffix' => '</div><div class="description">' . t('Set the daily hh:ii to run this cron.') . '</div>',
   );
   $form['ding_dibs_emails'] = array(
     '#type' => 'textarea',
@@ -253,4 +266,11 @@ function ding_dibs_cron_report() {
     $output .= $no_transactions_msg;
   }
   return render($output);
+}
+
+/**
+ * Generate zerro function.
+ */
+function generate_zerro ($item, $key) {
+  return str_pad($item, 2, "0", STR_PAD_LEFT);
 }
