@@ -4,8 +4,12 @@
  * E-mail reports functionality.
  */
 
+
 /**
- * Settings form.
+ * Form settings mailing reports.
+ *
+ * @return
+ *   Save results form settings.
  */
 function ding_dibs_setting_emails($form, &$form_state) {
   drupal_set_title(t('Ding DIBS setting emails'));
@@ -45,7 +49,7 @@ function ding_dibs_setting_emails($form, &$form_state) {
 }
 
 /**
- * Email validation function.
+ * Validation forms element email report settings.
  */
 function ding_dibs_emails_validate($element, &$form_state, $form) {
   $arrays_email = preg_split("/\,|\r\n|\n/", $element['#value']);
@@ -66,7 +70,10 @@ function ding_dibs_emails_validate($element, &$form_state, $form) {
 }
 
 /**
- * Output report table.
+ * Callback builds a table of reports to email mailing.
+ *
+ * @return
+ *   Returns tabular representation of values results.
  */
 function ding_dibs_email_reports() {
   $time = REQUEST_TIME - 10800;
@@ -226,7 +233,10 @@ function ding_dibs_email_reports() {
 }
 
 /**
- * Output report cron status.
+ * Callback that builds page reports run cron.
+ *
+ * @return
+ *   Returns tabular representation of values results.
  */
 function ding_dibs_cron_report() {
   drupal_set_title(t('Ding DIBS cron report'));
@@ -269,7 +279,13 @@ function ding_dibs_cron_report() {
 }
 
 /**
- * Generate zerro function.
+ * Generate an array of leading 0.
+ *
+ * @param $item
+ *   Input array.
+ *
+ * @return
+ *   Returns an array with the format of the time 01, 02.
  */
 function generate_zerro ($item, $key) {
   return str_pad($item, 2, "0", STR_PAD_LEFT);

@@ -445,6 +445,7 @@ function ding_dibs_cards() {
 
 /**
  * Implements hook_cron().
+ * This is done by sending written reports and email adresses result cron launches in the database
  */
 function ding_dibs_cron() {
   $start_cron = FALSE;
@@ -494,7 +495,10 @@ function ding_dibs_cron() {
 }
 
 /**
- * Update table ding_dibs_report_cron().
+ * Insert information in a table ding_dibs_report_cron.
+ *
+ * @return
+ *   Id outcome writing new values to the table ding_dibs_report_cron.
  */
 function _ding_dibs_insert_table($start) {
   $query = db_insert('ding_dibs_report_cron');
@@ -504,7 +508,16 @@ function _ding_dibs_insert_table($start) {
 }
 
 /**
- * Insert table ding_dibs_report_cron().
+ * Updating information in a table ding_dibs_report_cron.
+ *
+ * @param $id
+ *   id database table ding_dibs_report_cron.
+ *
+ * @param $start
+ *   Hours run cron.
+ *
+ * @param $start_minute
+ *   Minutes run cron.
  */
 function _ding_dibs_ubdate_table($id, $start, $start_minute) {
   $previous = _ding_dibs_select_info($id, 1, TRUE);
@@ -539,7 +552,19 @@ function _ding_dibs_ubdate_table($id, $start, $start_minute) {
 }
 
 /**
- * Select info from the table ding_dibs_report_cron().
+ * Select info from the table ding_dibs_report_cron.
+ *
+ * @param $id
+ *   id database table ding_dibs_report_cron.
+ *
+ * @param $status
+ *   status database table ding_dibs_report_cron.
+ *
+ * @param $operator
+ *   Criteria determining the date of the report.
+ *
+ * @return
+ *   The result of the database query.
  */
 function _ding_dibs_select_info($id = FALSE, $status = FALSE, $operator = FALSE) {
   $query = db_select('ding_dibs_report_cron', 'r');
