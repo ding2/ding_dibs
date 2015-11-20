@@ -386,25 +386,25 @@ function ding_dibs_menu() {
     'file' => 'ding_dibs.reports.inc',
   );
 
-  $items['admin/config/payment/ding_dibs/emails'] = array(
+  $items['admin/reports/ding_dibs_emails'] = array(
     'title' => 'Ding DIBS setting emails',
     'description' => 'Ding DIBS setting emails.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('ding_dibs_setting_emails'),
     'access arguments' => array('administer dibs settings'),
-    'type' => MENU_LOCAL_TASK,
+    'type' => MENU_NORMAL_ITEM,
     'weight' => 5,
     'file' => 'ding_dibs.email_reports.inc',
   );
 
-  $items['admin/config/payment/ding_dibs/cron_report'] = array(
+  $items['admin/reports/ding_dibs'] = array(
     'title' => 'Ding DIBS cron report',
     'description' => 'Ding DIBS cron report.',
     'page callback' => 'ding_dibs_cron_report',
     'access arguments' => array('administer dibs settings'),
     'weight' => 6,
     'tab_parent' => 'admin/config/payment/ding_dibs',
-    'type' => MENU_LOCAL_TASK,
+    'type' => MENU_NORMAL_ITEM,
     'file' => 'ding_dibs.email_reports.inc',
   );
 
@@ -449,19 +449,17 @@ function ding_dibs_cards() {
  */
 function ding_dibs_cron() {
   $start_cron = FALSE;
-  $start = variable_get('ding_dibs_start_cron', '');
+  $start = variable_get('ding_dibs_start_cron_hour', '');
   $start_minute = variable_get('ding_dibs_start_cron_minute', 0);
   $start_operation = variable_get('ding_dibs_start_operation_cron', '');
   $emails_list = variable_get('ding_dibs_emails', '');
   if (!empty($start)) {
-    $start_val = mktime($start, $start_minute, 0, format_date(REQUEST_TIME, 'custom', 'm'), format_date(REQUEST_TIME, 'custom', 'd'), format_date(REQUEST_TIME, 'custom', 'Y'));
-    $today_date = format_date(REQUEST_TIME, 'custom', 'd/m/Y/H:i');
-    $start_date = format_date($start_val, 'custom', 'd/m/Y/H:i');
+    $start_date = mktime($start, $start_minute, 0, format_date(REQUEST_TIME, 'custom', 'm', date_default_timezone_get()), format_date(REQUEST_TIME, 'custom', 'd', date_default_timezone_get()), format_date(REQUEST_TIME, 'custom', 'Y', date_default_timezone_get()));
     if (!empty($start_operation)) {
-      $start_operation_date = format_date($start_operation, 'custom', 'd/m/Y');
+      $start_operation_date = format_date($start_operation, 'custom', 'Y-d-m', date_default_timezone_get());
     }
-    if ($today_date == $start_date || $today_date >= $start_date) {
-      if (empty($start_operation_date) || $start_operation_date < format_date(REQUEST_TIME, 'custom', 'd/m/Y')) {
+    if (REQUEST_TIME >= $start_date) {
+      if (empty($start_operation_date) || $start_operation_date < format_date(REQUEST_TIME, 'custom', 'Y-d-m', date_default_timezone_get())) {
         $start_cron = TRUE;
       }
     }
@@ -469,21 +467,13 @@ function ding_dibs_cron() {
   if ($start_cron) {
     if (!empty($emails_list)) {
       $emails_array = preg_split("/\,|\r\n|\n/", $emails_list);
-      $emails_count = count($emails_array);
-      if ($emails_count >= 1) {
-        module_load_include('inc', 'ding_dibs', 'ding_dibs.email_reports');
-        $text_message = ding_dibs_email_reports();
+      if (count($emails_array) >= 1) {
         variable_set('ding_dibs_start_operation_cron', REQUEST_TIME);
         $id = _ding_dibs_insert_table(variable_get('ding_dibs_start_operation_cron', REQUEST_TIME));
-        for ($count = 0; $count < $emails_count; $count++) {
-          $email = $emails_array[$count];
-          if (!empty($email)) {
-            drupal_mail('system', 'mail', $email, language_default(), array(
-              'context' => array(
-                'subject' => t('Recent unusual DIBS reports'),
-                'message' => $text_message,
-              ),
-            ));
+        for ($count = 0; $count < count($emails_array); $count++) {
+          if (!empty($emails_array[$count])) {
+            $params = array('subject' => t('Recent unusual DIBS reports'));
+            drupal_mail('ding_dibs', 'ding_dibs_report', $emails_array[$count], language_default(), $params);
           }
         }
         if (!empty($id)) {
@@ -495,7 +485,26 @@ function ding_dibs_cron() {
 }
 
 /**
+ * Implements hook_mail().
+ *
+ * Generate custom reports mailing message.
+ */
+function ding_dibs_mail($key, &$message, $params) {
+  switch ($key) {
+    case 'ding_dibs_report':
+      module_load_include('inc', 'ding_dibs', 'ding_dibs.email_reports');
+      $text_message = ding_dibs_email_reports();
+      $message['subject'] = $params['subject'];
+      $message['body'][] = $text_message;
+      break;
+  }
+}
+
+/**
  * Insert information in a table ding_dibs_report_cron.
+ *
+ * @param $start
+ *   The start time is in Unicode.
  *
  * @return
  *   Id outcome writing new values to the table ding_dibs_report_cron.
@@ -508,37 +517,41 @@ function _ding_dibs_insert_table($start) {
 }
 
 /**
- * Updating information in a table ding_dibs_report_cron.
+ * Updating information in a DB table "ding_dibs_report_cron".
  *
  * @param $id
- *   id database table ding_dibs_report_cron.
+ *   Id database table "ding_dibs_report_cron".
  *
- * @param $start
+ * @param $start_hours
  *   Hours run cron.
  *
  * @param $start_minute
  *   Minutes run cron.
  */
-function _ding_dibs_ubdate_table($id, $start, $start_minute) {
-  $previous = _ding_dibs_select_info($id, 1, TRUE);
+function _ding_dibs_ubdate_table($id, $start_hours, $start_minute) {
+  $previous = _ding_dibs_select_report_cron_table($id, 1, TRUE);
   if (empty($previous)) {
-    $last = _ding_dibs_select_info($id, 1);
+    $last = _ding_dibs_select_report_cron_table($id, 1);
   }
-  $start_minute = str_pad($start_minute, 2, "0", STR_PAD_LEFT);
-  $day = format_date(REQUEST_TIME, 'custom', 'd');
-  $hour = format_date(variable_get('ding_dibs_start_operation_cron', REQUEST_TIME), 'custom', 'H:i');
+  module_load_include('inc', 'ding_dibs', 'ding_dibs.email_reports');
+  $start_minute = _ding_dibs_generate_zero($start_minute);
+  $day = format_date(REQUEST_TIME, 'custom', 'd', date_default_timezone_get());
+  $month = format_date(REQUEST_TIME, 'custom', 'F', date_default_timezone_get());
+  $hour = format_date(variable_get('ding_dibs_start_operation_cron', REQUEST_TIME), 'custom', 'H:i', date_default_timezone_get());
   if ($last) {
     $count = count($last) - 1;
     if (!empty($last[$count]->time_start)) {
-      $last_day = format_date($last[$count]->time_start, 'custom', 'd');
+      $last_day = format_date($last[$count]->time_start, 'custom', 'd', date_default_timezone_get());
+      $month_last_day = format_date($last[$count]->time_start, 'custom', 'F', date_default_timezone_get());
     }
   }
   else {
-    $last_day = $day - 1;
+    $last_day = format_date(REQUEST_TIME - 86400, 'custom', 'd', date_default_timezone_get());
+    $month_last_day = format_date(REQUEST_TIME - 86400, 'custom', 'F', date_default_timezone_get());
   }
-  $message = $day . 'th september ' . $hour . ': Job delivered report for '
-    . $last_day . 'th sep ' . $start . ':' . $start_minute . ' - ' . $day . 'th september '
-    . $start . ':' . $start_minute . '.';
+  $message = $day . 'th ' . $month . ' ' . $hour . ': Job delivered report for ';
+  $message .= $last_day . 'th ' . $month_last_day . ' ' . $start_hours . ':' . $start_minute;
+  $message .= ' - ' . $day . 'th ' . $month . ' ' . $start_hours . ':' . $start_minute . '.';
   $query = db_update('ding_dibs_report_cron');
   $query->fields(
     array(
@@ -560,24 +573,24 @@ function _ding_dibs_ubdate_table($id, $start, $start_minute) {
  * @param $status
  *   status database table ding_dibs_report_cron.
  *
- * @param $operator
- *   Criteria determining the date of the report.
+ * @param $id_report
+ *   ID report which will be started sample database.
  *
  * @return
  *   The result of the database query.
  */
-function _ding_dibs_select_info($id = FALSE, $status = FALSE, $operator = FALSE) {
+function _ding_dibs_select_report_cron_table($id = FALSE, $status = FALSE, $id_report = FALSE) {
   $query = db_select('ding_dibs_report_cron', 'r');
   $query->fields('r', array('status', 'time_start'));
-  if ($id && empty($operator)) {
+  if ($id && empty($id_report)) {
     $query->condition('r.id', $id, '<');
   }
-  elseif ($id && !empty($operator)) {
+  elseif ($id && !empty($id_report)) {
     $query->condition('r.id', --$id, '=');
   }
   if ($status) {
     $query->condition('r.status', $status);
   }
   $result = $query->execute()->fetchAll();
-  return $result;
+  return !empty($result) ? $result : '';
 }

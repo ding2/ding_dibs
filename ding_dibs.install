@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Implementation of hook_schema().
+ * Implements hook_schema().
  */
 function ding_dibs_schema() {
   $schema['ding_dibs_report_cron'] = array(
@@ -13,13 +13,11 @@ function ding_dibs_schema() {
         'not null' => TRUE,
       ),
       'time_start' => array(
-        'type' => 'varchar',
-        'length' => 32,
+        'type' => 'int',
         'not null' => TRUE,
       ),
       'time_end' => array(
-        'type' => 'varchar',
-        'length' => 32,
+        'type' => 'int',
         'default' => '',
       ),
       'status' => array(
@@ -81,8 +79,8 @@ function ding_dibs_uninstall() {
     'ding_dibs_start_cron_minute',
     'ding_dibs_emails_validate',
   );
-  for ($start = 0; $start < count($variables); $start++) {
-    variable_del($variables[$start]);
+  foreach ($variables as $value) {
+    variable_del($value);
   }
   drupal_uninstall_schema('ding_dibs');
 }
@@ -116,3 +114,4 @@ function ding_dibs_update_7001(&$sandbox) {
     drupal_install_schema('ding_dibs');
   }
 }
+
