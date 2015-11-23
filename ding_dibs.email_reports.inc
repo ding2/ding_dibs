@@ -69,7 +69,7 @@ function ding_dibs_emails_validate($element, &$form_state, $form) {
  *   Returns tabular representation of values results.
  */
 function ding_dibs_email_reports() {
-  $time = REQUEST_TIME - 10800;
+  $time = REQUEST_TIME - 86400;
   $report = db_select('dibs_transactions', 'd')
     ->fields('d', array(
       'payment_order_id',
