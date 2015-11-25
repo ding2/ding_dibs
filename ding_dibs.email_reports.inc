@@ -63,10 +63,10 @@ function ding_dibs_emails_validate($element, &$form_state, $form) {
 }
 
 /**
- * Callback builds a table of reports to email mailing.
+ * The function that create table reports for email mailing.
  *
  * @return
- *   Returns tabular representation of values results.
+ *   The result of the function is a value as a table.
  */
 function ding_dibs_email_reports() {
   $time = REQUEST_TIME - 86400;
@@ -94,8 +94,18 @@ function ding_dibs_email_reports() {
     return '<p>' . t('No transactions found.') . '</p>';
   }
   for ($count = 0; $count < $max_count; $count++) {
-    //Clipping of output orders with the status of "1/1/1" and "0/0/0"
-    if (!($report[$count]->payment_status == $report[$count]->provider_payment_status && $report[$count]->payment_status == $report[$count]->dibs_capture_status && $report[$count]->provider_payment_status == $report[$count]->dibs_capture_status)) {
+    //As a result deliveries should fall reports from the database table "dibs transactions".
+    //Columns "payment status", "provider payment_status", "dibs_capture_status",
+    //have both equally have the status of unpaid (0) or paid (1).
+    //Testing conducted by feedback from.
+    if (!(
+      //Payment status equal provider payment status
+      $report[$count]->payment_status == $report[$count]->provider_payment_status
+      //Payment status equal dibs capture status
+      && $report[$count]->payment_status == $report[$count]->dibs_capture_status
+      //Provider payment status equal dibs capture status
+      && $report[$count]->provider_payment_status == $report[$count]->dibs_capture_status
+    )) {
       $report_valid[] = $report[$count];
     }
   }
@@ -127,7 +137,7 @@ function ding_dibs_email_reports() {
  * Callback that builds page reports run cron.
  *
  * @return
- *   Returns tabular representation of values results.
+ *   The result of the function is a value as a table.
  */
 function ding_dibs_cron_report() {
   $report = db_select('ding_dibs_report_cron', 'd')
@@ -140,21 +150,13 @@ function ding_dibs_cron_report() {
     return drupal_set_message(t('No cron report.'), 'warning');
   }
   drupal_add_css(drupal_get_path('module', 'ding_dibs') . '/css/ding_dibs.css');
-  $header = array(array('data' => t('Message'), 'class' => 'payment'));
+  $header = array(array('data' => t('Message')));
   $rows = array();
   foreach ($report as $record) {
     if (empty($record->text)) {
-      $day = format_date($record->time_start, 'custom', 'd', date_default_timezone_get());
-      $hour = format_date($record->time_start, 'custom', 'H:i', date_default_timezone_get());
-      $month = format_date($record->time_start, 'custom', 'F', date_default_timezone_get());
-      $record->text = $day . 'th ' . $month . ' ' . $hour . ': Job failed.';
+      $record->text = t('%date : Job failed.', array('%date' => format_date($record->time_start, 'custom', 'dS F H:i', date_default_timezone_get())));
     }
-    $row = array(
-      array(
-        'data' => t($record->text),
-        'class' => 'payment',
-      ),
-    );
+    $row = array(array('data' => t($record->text)));
     $rows[] = $row;
   }
   $output = theme('table', array(
@@ -168,63 +170,23 @@ function ding_dibs_cron_report() {
  * The function adds to the dataset for the numbers zero to ten.
  *
  * @param $item
- *   An array of input data for the time period.
- *
- * @return
- *   Returns an array with the format of the time 01, 02.
+ *   The number of period.
  */
 function _ding_dibs_generate_zero($item) {
   return str_pad($item, 2, "0", STR_PAD_LEFT);
 }
 
 /**
- * The function generates a table with data reporting database table
- * so dibs transactions.
+ * The function generates a table row.
  *
  * @param $dibs_transactions_value
  *   Object database table data dibs transactions
  *
- * @param $order_info_long
- *   Long description of table warrant dibs_transactions.
- *
- * @param $status
- *   Status display last column of the table report
- *
- * @param $dibs_transactions_value->payment_order_id
- *   ID orders payment.
- *
- * @param $dibs_transactions_value->payment_transaction_id
- *   ID orders transaction.
- *
- * @param $dibs_transactions_value->payment_time
- *   Time payment.
- *
- * @param $dibs_transactions_value->customer_uid
- *   User ID who has charge.
- *
- * @param $dibs_transactions_value->payment_price
- *   Product price the order in payment.
- *
- * @param $dibs_transactions_value->payment_status
- *   Status payment.
- *
- * @param $dibs_transactions_value->provider_payment_status
- *   Provider payment status.
- *
- * @param $dibs_transactions_value->dibs_capture_status
- *   Captured payment status.
- *
  * @return
- *   Return value table dibs_transactions for mailing reports.
+ *   Return table row for mailing reports.
  */
 function _ding_dibs_report_generation_values($dibs_transactions_value) {
-  $status = $dibs_transactions_value->payment_status . $dibs_transactions_value->provider_payment_status . $dibs_transactions_value->dibs_capture_status;
-  if ($status == 100) {
-    $status = 'warning';
-  }
-  else {
-    $status = 'error';
-  }
+  //Long description of table warrant dibs_transactions.
   $order_info_long = unserialize($dibs_transactions_value->order_info_long);
   if (is_array($order_info_long) && count($order_info_long) > 0) {
     $text = implode(array_shift($order_info_long)) . ' ';
@@ -237,14 +199,23 @@ function _ding_dibs_report_generation_values($dibs_transactions_value) {
     $text = $dibs_transactions_value->order_info_short;
   }
   $row = array(
+    //ID orders payment.
     array('data' => check_plain($dibs_transactions_value->payment_order_id)),
+    //ID orders transaction.
     array('data' => check_plain($dibs_transactions_value->payment_transaction_id)),
+    //Time payment.
     array('data' => check_plain($dibs_transactions_value->payment_time)),
+    //User ID who has charge.
     array('data' => check_plain($dibs_transactions_value->customer_uid)),
+    //Order info.
     array('data' => check_plain($text)),
+    //Product price the order in payment.
     array('data' => check_plain($dibs_transactions_value->payment_price)),
+    //Status payment.
     array('data' => $dibs_transactions_value->payment_status ? t('yes') : t('no')),
+    //Provider payment status.
     array('data' => $dibs_transactions_value->provider_payment_status ? t('yes') : t('no')),
+    //Captured payment status.
     array('data' => $dibs_transactions_value->dibs_capture_status ? t('yes') : t('no')),
   );
   return $row;

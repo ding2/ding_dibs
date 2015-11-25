@@ -11,23 +11,27 @@ function ding_dibs_schema() {
         'type' => 'serial',
         'unsigned' => TRUE,
         'not null' => TRUE,
+        'description' => 'Id record',
       ),
       'time_start' => array(
         'type' => 'int',
         'not null' => TRUE,
+        'description' => 'The start time cron mailing unicode format',
       ),
       'time_end' => array(
         'type' => 'int',
-        'default' => '',
+        'description' => 'The end cron mailing unicode format',
       ),
       'status' => array(
         'type' => 'varchar',
         'length' => 32,
         'default' => '',
+        'description' => '0 - sending not successful 1 - successful sending',
       ),
       'text' => array(
         'type' => 'text',
         'size' => 'medium',
+        'description' => 'The report mailing',
       ),
     ),
     'primary key' => array('id'),
@@ -65,7 +69,7 @@ function ding_dibs_install() {
     'default' => 0,
     'description' => '0 = capture failed, 1 = capture succeeded',
   ));
-  variable_set('ding_dibs_start_cron', 2);
+  variable_set('ding_dibs_start_cron_hour', 2);
   drupal_install_schema('ding_dibs');
 }
 
@@ -74,8 +78,8 @@ function ding_dibs_install() {
  */
 function ding_dibs_uninstall() {
   $variables = array(
-    'ding_dibs_start_cron',
-    'ding_dibs_start_operation_cron',
+    'ding_dibs_start_cron_hour',
+    'ding_dibs_last_cron',
     'ding_dibs_start_cron_minute',
     'ding_dibs_emails_validate',
   );

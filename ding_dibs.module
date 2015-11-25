@@ -386,7 +386,7 @@ function ding_dibs_menu() {
     'file' => 'ding_dibs.reports.inc',
   );
 
-  $items['admin/reports/ding_dibs_emails'] = array(
+  $items['admin/config/payment/ding_dibs/emails'] = array(
     'title' => 'Ding DIBS setting emails',
     'description' => 'Ding DIBS setting emails.',
     'page callback' => 'drupal_get_form',
@@ -449,27 +449,25 @@ function ding_dibs_cards() {
  */
 function ding_dibs_cron() {
   $start_cron = FALSE;
-  $start = variable_get('ding_dibs_start_cron_hour', '');
-  $start_minute = variable_get('ding_dibs_start_cron_minute', 0);
-  $start_operation = variable_get('ding_dibs_start_operation_cron', '');
-  $emails_list = variable_get('ding_dibs_emails', '');
-  if (!empty($start)) {
-    $start_date = mktime($start, $start_minute, 0, format_date(REQUEST_TIME, 'custom', 'm', date_default_timezone_get()), format_date(REQUEST_TIME, 'custom', 'd', date_default_timezone_get()), format_date(REQUEST_TIME, 'custom', 'Y', date_default_timezone_get()));
-    if (!empty($start_operation)) {
-      $start_operation_date = format_date($start_operation, 'custom', 'Y-d-m', date_default_timezone_get());
-    }
-    if (REQUEST_TIME >= $start_date) {
-      if (empty($start_operation_date) || $start_operation_date < format_date(REQUEST_TIME, 'custom', 'Y-d-m', date_default_timezone_get())) {
-        $start_cron = TRUE;
-      }
+  $cron_start_hour = variable_get('ding_dibs_start_cron_hour', NULL);
+  $cron_start_minute = variable_get('ding_dibs_start_cron_minute', 0);
+  if (!empty($cron_start_hour)) {
+    $request_time = new DateTime('NOW');
+    $today_cron_start_time = new DateTime('NOW');
+    $today_cron_start_time->setTime($cron_start_hour, $cron_start_minute);
+    $cron_time = variable_get('ding_dibs_last_cron', REQUEST_TIME - 86400);
+    $last_cron_time = new DateTime(format_date($cron_time, 'custom', 'Y-m-d H:i'));
+    if ($today_cron_start_time > $last_cron_time
+      && $request_time >= $today_cron_start_time) {
+      $start_cron = TRUE;
     }
   }
   if ($start_cron) {
     if (!empty($emails_list)) {
       $emails_array = preg_split("/\,|\r\n|\n/", $emails_list);
       if (count($emails_array) >= 1) {
-        variable_set('ding_dibs_start_operation_cron', REQUEST_TIME);
-        $id = _ding_dibs_insert_table(variable_get('ding_dibs_start_operation_cron', REQUEST_TIME));
+        variable_set('ding_dibs_last_cron', REQUEST_TIME);
+        $id = _ding_dibs_insert_table(variable_get('ding_dibs_last_cron', REQUEST_TIME));
         for ($count = 0; $count < count($emails_array); $count++) {
           if (!empty($emails_array[$count])) {
             $params = array('subject' => t('Recent unusual DIBS reports'));
@@ -477,7 +475,7 @@ function ding_dibs_cron() {
           }
         }
         if (!empty($id)) {
-          _ding_dibs_ubdate_table($id, $start, $start_minute);
+          _ding_dibs_update_table($id, $start, $start_minute);
         }
       }
     }
@@ -528,7 +526,7 @@ function _ding_dibs_insert_table($start) {
  * @param $start_minute
  *   Minutes run cron.
  */
-function _ding_dibs_ubdate_table($id, $start_hours, $start_minute) {
+function _ding_dibs_update_table($id, $start_hours, $start_minute) {
   $previous = _ding_dibs_select_report_cron_table($id, 1, TRUE);
   if (empty($previous)) {
     $last = _ding_dibs_select_report_cron_table($id, 1);
@@ -537,7 +535,7 @@ function _ding_dibs_ubdate_table($id, $start_hours, $start_minute) {
   $start_minute = _ding_dibs_generate_zero($start_minute);
   $day = format_date(REQUEST_TIME, 'custom', 'd', date_default_timezone_get());
   $month = format_date(REQUEST_TIME, 'custom', 'F', date_default_timezone_get());
-  $hour = format_date(variable_get('ding_dibs_start_operation_cron', REQUEST_TIME), 'custom', 'H:i', date_default_timezone_get());
+  $hour = format_date(variable_get('ding_dibs_last_cron', REQUEST_TIME), 'custom', 'H:i', date_default_timezone_get());
   if ($last) {
     $count = count($last) - 1;
     if (!empty($last[$count]->time_start)) {
