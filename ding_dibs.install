@@ -18,20 +18,11 @@ function ding_dibs_schema() {
         'not null' => TRUE,
         'description' => 'The start time cron mailing unicode format',
       ),
-      'time_end' => array(
-        'type' => 'int',
-        'description' => 'The end cron mailing unicode format',
-      ),
       'status' => array(
         'type' => 'varchar',
         'length' => 32,
         'default' => '',
         'description' => '0 - sending not successful 1 - successful sending',
-      ),
-      'text' => array(
-        'type' => 'text',
-        'size' => 'medium',
-        'description' => 'The report mailing',
       ),
     ),
     'primary key' => array('id'),

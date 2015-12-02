@@ -141,7 +141,7 @@ function ding_dibs_email_reports() {
  */
 function ding_dibs_cron_report() {
   $report = db_select('ding_dibs_report_cron', 'd')
-    ->fields('d', array('id', 'time_start', 'status', 'text'))
+    ->fields('d', array('id', 'time_start', 'status'))
     ->orderBy('id', 'DESC')
     ->execute()
     ->fetchAll();
@@ -150,14 +150,23 @@ function ding_dibs_cron_report() {
     return drupal_set_message(t('No cron report.'), 'warning');
   }
   drupal_add_css(drupal_get_path('module', 'ding_dibs') . '/css/ding_dibs.css');
-  $header = array(array('data' => t('Message')));
+  $header = array(array('data' => t('Date')), array('data' => t('Message')));
   $rows = array();
   foreach ($report as $record) {
-    if (empty($record->text)) {
-      $record->text = t('%date : Job failed.', array('%date' => format_date($record->time_start, 'custom', 'dS F H:i', date_default_timezone_get())));
+    if (empty($record->status)) {
+      $text = t('%date : Job failed.', array('%date' => format_date($record->time_start, 'custom', 'dS F H:i', date_default_timezone_get())));
     }
-    $row = array(array('data' => t($record->text)));
-    $rows[] = $row;
+    else {
+      $from_date = format_date($record->time_start-86400, 'custom', 'dS F H:i', date_default_timezone_get());
+      $to_date = format_date($record->time_start, 'custom', 'dS F H:i', date_default_timezone_get());
+      $text = t('Job delivered report for %from_date - %to_date.', array('%from_date' => $from_date, '%to_date' => $to_date));
+    }
+    $rows[] = array(
+      //Date and time run cron.
+      array('data' => check_plain(format_date($record->time_start, 'custom', 'dS F H:i', date_default_timezone_get()))),
+      //Text output run cron.
+      array('data' => $text),
+    );
   }
   $output = theme('table', array(
     'header' => $header,

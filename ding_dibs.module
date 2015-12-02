@@ -463,8 +463,8 @@ function ding_dibs_cron() {
     }
   }
   if ($start_cron) {
-    if (!empty($emails_list)) {
-      $emails_array = preg_split("/\,|\r\n|\n/", $emails_list);
+    if (!empty(variable_get('ding_dibs_emails', ''))) {
+      $emails_array = preg_split("/\,|\r\n|\n/", variable_get('ding_dibs_emails', ''));
       if (count($emails_array) >= 1) {
         variable_set('ding_dibs_last_cron', REQUEST_TIME);
         $id = _ding_dibs_insert_table(variable_get('ding_dibs_last_cron', REQUEST_TIME));
@@ -475,7 +475,7 @@ function ding_dibs_cron() {
           }
         }
         if (!empty($id)) {
-          _ding_dibs_update_table($id, $start, $start_minute);
+          _ding_dibs_update_table($id);
         }
       }
     }
@@ -526,36 +526,11 @@ function _ding_dibs_insert_table($start) {
  * @param $start_minute
  *   Minutes run cron.
  */
-function _ding_dibs_update_table($id, $start_hours, $start_minute) {
-  $previous = _ding_dibs_select_report_cron_table($id, 1, TRUE);
-  if (empty($previous)) {
-    $last = _ding_dibs_select_report_cron_table($id, 1);
-  }
-  module_load_include('inc', 'ding_dibs', 'ding_dibs.email_reports');
-  $start_minute = _ding_dibs_generate_zero($start_minute);
-  $day = format_date(REQUEST_TIME, 'custom', 'd', date_default_timezone_get());
-  $month = format_date(REQUEST_TIME, 'custom', 'F', date_default_timezone_get());
-  $hour = format_date(variable_get('ding_dibs_last_cron', REQUEST_TIME), 'custom', 'H:i', date_default_timezone_get());
-  if ($last) {
-    $count = count($last) - 1;
-    if (!empty($last[$count]->time_start)) {
-      $last_day = format_date($last[$count]->time_start, 'custom', 'd', date_default_timezone_get());
-      $month_last_day = format_date($last[$count]->time_start, 'custom', 'F', date_default_timezone_get());
-    }
-  }
-  else {
-    $last_day = format_date(REQUEST_TIME - 86400, 'custom', 'd', date_default_timezone_get());
-    $month_last_day = format_date(REQUEST_TIME - 86400, 'custom', 'F', date_default_timezone_get());
-  }
-  $message = $day . 'th ' . $month . ' ' . $hour . ': Job delivered report for ';
-  $message .= $last_day . 'th ' . $month_last_day . ' ' . $start_hours . ':' . $start_minute;
-  $message .= ' - ' . $day . 'th ' . $month . ' ' . $start_hours . ':' . $start_minute . '.';
+function _ding_dibs_update_table($id) {
   $query = db_update('ding_dibs_report_cron');
   $query->fields(
     array(
-      'time_end' => REQUEST_TIME,
       'status' => 1,
-      'text' => $message,
     )
   );
   $query->condition('id', $id);
